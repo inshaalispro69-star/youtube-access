@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>YT → MP4 (Works on Phone Too!)</title>
+  <meta name="description" content="Download any YouTube video as MP4 directly in your browser – no app needed."/>
+  <style>
+    <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: 1.1;
+      background: #0f0f0f;
+      color: #fff;
+    }
+    h1 { text-align: center; color: #ff0000; }
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 15px;
+      font-size: 16px;
+      border: none;
+      border-radius: 12px;
+      background: #1f1f1f;
+      color: white;
+      margin: 15px 0;
+    }
+    button {
+      width: 100%;
+      padding: 16px;
+      font-size: 18px;
+      font-weight: bold;
+      background: #ff0000;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    button:disabled { background: #660000; }
+    #status { margin-top: 20px; text-align: center; font-size: 18px; min-height: 30px; }
+    .warning {
+      background: #330000;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .footer { text-align: center; margin-top: 50px; font-size: 12px; opacity: 0.6; }
+  </style>
+</head>
+<body>
+
+  <h1>YT → MP4 Downloader</h1>
+  <p style="text-align:center;">Paste YouTube link → Download as MP4<br><strong>Works on iPhone, Android, PC – No App Needed</strong></p>
+
+  <div class="warning">
+    <strong>Legal Notice:</strong> Only download videos you own or have permission for.<br>
+    Respect copyright and YouTube's Terms of Service.
+  </div>
+
+  <textarea id="input" placeholder="Paste YouTube link here (mobile or desktop)
+  
+Example:
+https://youtube.com/watch?v=...
+https://youtu.be/...
+or even the full embed code"></textarea>
+
+  <button id="convertBtn">Download MP4 Now</button>
+  <div id="status"></div>
+
+  <div class="footer">
+    Made with yt-dlp-web • Hosted on GitHub Pages • 100% client-side
+  </div>
+
+  <!-- Latest yt-dlp WebAssembly (works on all devices including iOS) -->
+  <script src="https://cdn.jsdelivr.net/npm/yt-dlp-web@latest/dist/yt-dlp.min.js"></script>
+  <script>
+    const btn = document.getElementById('convertBtn');
+    const input = document.getElementById('input');
+    const status = document.getElementById('status');
+
+    btn.addEventListener('click', async () => {
+      let raw = input.value.trim();
+      if (!raw) return status.textContent = "Paste a YouTube link first!";
+
+      // Extract video ID from any YouTube format
+      const regex = /(?:youtube\.com\/(?:.*v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+      const match = raw.match(regex);
+      if (!match) {
+        status.textContent = "Not a valid YouTube link";
+        status.style.color = "#ff4444";
+        return;
+      }
+      const videoId = match[1];
+      const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+      status.textContent = "Connecting to YouTube...";
+      status.style.color = "#ffff00";
+      btn.disabled = true;
+
+      try {
+        const yt = new YTDlp();
+
+        // Get video info
+        const info = await yt.getInfo(url);
+
+        // Pick best MP4 video (ignores audio-only)
+        let format = info.formats
+          .filter(f => f.ext === 'mp4' && f.height)
+          .sort((a, b) => b.height - a.height)[0];
+
+        // Fallback
+        if (!format) format = info.formats.find(f => f.ext === 'mp4');
+
+        const safeTitle = (info.title || "youtube-video")
+          .replace(/[^\w\-_. ]/g, "_")
+          .substring(0, 100);
+
+        const filename = safeTitle + ".mp4";
+
+        status.textContent = `Downloading "${info.title}" (${format.height ? format.height + 'p' : 'best'})...`;
+
+        const blob = await yt.download(url, {
+          format: format.format_id,
+          output: filename
+        });
+
+        // Trigger download (works perfectly on iPhone & Android too!)
+        const downloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(downloadUrl);
+
+        status.textContent = "Downloaded! Check your Downloads folder";
+        status.style.color = "#00ff00";
+      } catch (err) {
+        console.error(err);
+        status.textContent = "Failed — video may be private, age-restricted, or blocked";
+        status.style.color = "#ff4444";
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Allow pressing Enter in textarea to start download
+    input.addEventListener('keydown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        btn.click();
+      }
+    };
+  </script>
+</body>
+</html>
